@@ -204,17 +204,13 @@ impl Info<'_> {
     }
 }
 
-/// Show the flamegraph.
-pub fn ui(
+pub fn num_frames(
     ui: &mut egui::Ui,
-    options: &mut Options,
-    scope_collection: &ScopeCollection,
+    options: &Options,
     frames: &SelectedFrames,
-) {
-    puffin::profile_function!();
-    let mut reset_view = false;
-
+) -> (usize, bool) {
     let num_frames = frames.frames.len();
+    let mut reset_view = false;
 
     {
         // reset view if number of selected frames changes (and we are viewing all of them):
@@ -227,6 +223,19 @@ pub fn ui(
         }
         ui.memory_mut(|m| m.data.insert_temp(num_frames_id, num_frames));
     }
+
+    (num_frames, reset_view)
+}
+
+/// Show the flamegraph header.
+pub fn header_ui(
+    ui: &mut egui::Ui,
+    options: &mut Options,
+    frames: &SelectedFrames,
+    num_frames: usize,
+    reset_view: &mut bool,
+) {
+    puffin::profile_function!();
 
     ui.horizontal(|ui| {
         options.scope_name_filter.ui(ui);
@@ -242,7 +251,7 @@ pub fn ui(
                 // if we view all the frames, or an average of them,
                 // and that difference is pretty massive, so help the user:
                 if changed && num_frames > 1 {
-                    reset_view = true;
+                    *reset_view = true;
                 }
             }
 
@@ -282,6 +291,16 @@ pub fn ui(
             );
         });
     });
+}
+
+pub fn flamegraph_ui(
+    ui: &mut egui::Ui,
+    options: &mut Options,
+    scope_collection: &ScopeCollection,
+    frames: &SelectedFrames,
+    reset_view: bool,
+) {
+    puffin::profile_function!();
 
     Frame::dark_canvas(ui.style()).show(ui, |ui| {
         ui.visuals_mut().clip_rect_margin = 0.0;

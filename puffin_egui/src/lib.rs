@@ -16,6 +16,8 @@ mod flamegraph;
 mod maybe_mut_ref;
 mod stats;
 
+use crate::flamegraph::{flamegraph_ui, header_ui, num_frames};
+
 pub use {egui, maybe_mut_ref::MaybeMutRef, puffin};
 
 use egui::{scroll_area::ScrollSource, *};
@@ -526,6 +528,8 @@ impl ProfilerUi {
             return;
         };
 
+        let (num_frames, mut reset_view) = num_frames(ui, &self.flamegraph_options, &frames);
+
         let header_ui = |ui: &mut Ui| {
             ui.horizontal(|ui| {
                 let play_pause_button_size = Vec2::splat(24.0);
@@ -572,7 +576,7 @@ impl ProfilerUi {
                     });
                 }
 
-                if settings.additional_frame_info {
+                if settings.additional_frame_info && !settings.compact_ui {
                     frames_info_ui(ui, &frames);
                 }
             });
@@ -602,12 +606,38 @@ impl ProfilerUi {
             if self.paused.is_none() {
                 ui.ctx().request_repaint(); // keep refreshing to see latest data
             }
+            
+            if settings.compact_ui {
+                ui.separator();
+            }
 
             ui.horizontal(|ui| {
                 ui.label("View:");
                 ui.selectable_value(&mut self.view, View::Flamegraph, "Flamegraph");
                 ui.selectable_value(&mut self.view, View::Stats, "Table");
             });
+
+            match self.view {
+                View::Flamegraph => {
+                    if settings.compact_ui {
+                        ui.separator();
+                    }
+                    header_ui(
+                        ui,
+                        &mut self.flamegraph_options,
+                        &frames,
+                        num_frames,
+                        &mut reset_view,
+                    );
+                }
+                _ => {}  
+            }
+
+            if settings.additional_frame_info && settings.compact_ui {
+                ui.separator();
+
+                frames_info_ui(ui, &frames);
+            }
         };
 
         if settings.compact_ui {
@@ -615,13 +645,16 @@ impl ProfilerUi {
         } else {
             ui.vertical(header_ui);
         }
+        
+        
 
         match self.view {
-            View::Flamegraph => flamegraph::ui(
+            View::Flamegraph => flamegraph_ui(
                 ui,
                 &mut self.flamegraph_options,
                 frame_view.scope_collection(),
                 &frames,
+                reset_view,
             ),
             View::Stats => stats::ui(
                 ui,
