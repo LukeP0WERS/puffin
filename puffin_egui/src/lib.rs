@@ -41,7 +41,7 @@ const HOVER_COLOR: Rgba = Rgba::from_rgb(0.8, 0.8, 0.8);
 /// else it will be shown in a floating [`egui::Window`].
 ///
 /// Closing the viewport or window will call `puffin::set_scopes_on(false)`.
-pub fn show_viewport_if_enabled(ctx: &egui::Context) {
+pub fn show_viewport_if_enabled(ctx: &egui::Context, settings: ProfilerUiSettings) {
     if !puffin::are_scopes_on() {
         return;
     }
@@ -56,11 +56,11 @@ pub fn show_viewport_if_enabled(ctx: &egui::Context) {
                 egui::Window::new("Puffin Profiler")
                     .default_size([1024.0, 600.0])
                     .open(&mut open)
-                    .show(ctx, profiler_ui);
+                    .show(ctx, |ui| profiler_ui(ui, &settings));
                 puffin::set_scopes_on(open);
             } else {
                 // A proper viewport!
-                egui::CentralPanel::default().show(ctx, profiler_ui);
+                egui::CentralPanel::default().show(ctx, |ui| profiler_ui(ui, &settings));
                 if ctx.input(|i| i.viewport().close_requested()) {
                     puffin::set_scopes_on(false);
                 }
@@ -74,26 +74,46 @@ pub fn show_viewport_if_enabled(ctx: &egui::Context) {
 /// If you want to control the window yourself, use [`profiler_ui`] instead.
 ///
 /// Returns `false` if the user closed the profile window.
-pub fn profiler_window(ctx: &egui::Context) -> bool {
+pub fn profiler_window(ctx: &egui::Context, settings: &ProfilerUiSettings) -> bool {
     puffin::profile_function!();
     let mut open = true;
     egui::Window::new("Profiler")
         .default_size([1024.0, 600.0])
         .open(&mut open)
-        .show(ctx, profiler_ui);
+        .show(ctx, |ui| profiler_ui(ui, settings));
     open
 }
 
 static PROFILE_UI: std::sync::LazyLock<parking_lot::Mutex<GlobalProfilerUi>> =
     std::sync::LazyLock::new(Default::default);
 
+#[derive(Clone, Copy)]
+pub struct ProfilerUiSettings {
+    /// When enabled the profiler ui will prefer to lay elements horizontally.
+    pub compact_ui: bool,
+    /// When enabled additional frame info will be displayed next to the play button.
+    pub additional_frame_info: bool,
+    /// When enabled pressing the space bar will play/pause the profiler.
+    pub play_with_space_button: bool,
+}
+
+impl Default for ProfilerUiSettings {
+    fn default() -> Self {
+        Self {
+            compact_ui: false,
+            additional_frame_info: true,
+            play_with_space_button: true,
+        }
+    }
+}
+
 /// Show the profiler.
 ///
 /// Call this from within an [`egui::Window`], or use [`profiler_window`] instead.
-pub fn profiler_ui(ui: &mut egui::Ui) {
+pub fn profiler_ui(ui: &mut egui::Ui, settings: &ProfilerUiSettings) {
     let mut profile_ui = PROFILE_UI.lock();
 
-    profile_ui.ui(ui);
+    profile_ui.ui(ui, settings);
 }
 
 // ----------------------------------------------------------------------------
@@ -115,19 +135,19 @@ impl GlobalProfilerUi {
     /// If you want to control the window yourself, use [`Self::ui`] instead.
     ///
     /// Returns `false` if the user closed the profile window.
-    pub fn window(&mut self, ctx: &egui::Context) -> bool {
+    pub fn window(&mut self, ctx: &egui::Context, settings: &ProfilerUiSettings) -> bool {
         let mut frame_view = self.global_frame_view.lock();
         self.profiler_ui
-            .window(ctx, &mut MaybeMutRef::MutRef(&mut frame_view))
+            .window(ctx, &mut MaybeMutRef::MutRef(&mut frame_view), settings)
     }
 
     /// Show the profiler.
     ///
     /// Call this from within an [`egui::Window`], or use [`Self::window`] instead.
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, settings: &ProfilerUiSettings) {
         let mut frame_view = self.global_frame_view.lock();
         self.profiler_ui
-            .ui(ui, &mut MaybeMutRef::MutRef(&mut frame_view));
+            .ui(ui, &mut MaybeMutRef::MutRef(&mut frame_view), settings);
     }
 
     /// The frames we are looking at.
@@ -355,13 +375,14 @@ impl ProfilerUi {
         &mut self,
         ctx: &egui::Context,
         frame_view: &mut MaybeMutRef<'_, FrameView>,
+        settings: &ProfilerUiSettings,
     ) -> bool {
         puffin::profile_function!();
         let mut open = true;
         egui::Window::new("Profiler")
             .default_size([1024.0, 600.0])
             .open(&mut open)
-            .show(ctx, |ui| self.ui(ui, frame_view));
+            .show(ctx, |ui| self.ui(ui, frame_view, settings));
         open
     }
 
@@ -435,7 +456,12 @@ impl ProfilerUi {
     /// Show the profiler.
     ///
     /// Call this from within an [`egui::Window`], or use [`Self::window`] instead.
-    pub fn ui(&mut self, ui: &mut egui::Ui, frame_view: &mut MaybeMutRef<'_, FrameView>) {
+    pub fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        frame_view: &mut MaybeMutRef<'_, FrameView>,
+        settings: &ProfilerUiSettings,
+    ) {
         #![allow(clippy::collapsible_else_if)]
         puffin::profile_function!();
 
@@ -453,11 +479,16 @@ impl ProfilerUi {
 
         ui.scope(|ui| {
             ui.spacing_mut().item_spacing.y = 6.0;
-            self.ui_impl(ui, frame_view);
+            self.ui_impl(ui, frame_view, settings);
         });
     }
 
-    fn ui_impl(&mut self, ui: &mut egui::Ui, frame_view: &mut MaybeMutRef<'_, FrameView>) {
+    fn ui_impl(
+        &mut self,
+        ui: &mut egui::Ui,
+        frame_view: &mut MaybeMutRef<'_, FrameView>,
+        settings: &ProfilerUiSettings,
+    ) {
         let mut hovered_frame = None;
 
         egui::CollapsingHeader::new("Frame history")
@@ -495,78 +526,95 @@ impl ProfilerUi {
             return;
         };
 
-        ui.horizontal(|ui| {
-            let play_pause_button_size = Vec2::splat(24.0);
-            let space_pressed = ui.input(|i| i.key_pressed(egui::Key::Space))
-                && ui.memory(|m| m.focused().is_none());
+        let header_ui = |ui: &mut Ui| {
+            ui.horizontal(|ui| {
+                let play_pause_button_size = Vec2::splat(24.0);
+                let (hover_text, space_pressed) = if settings.play_with_space_button {
+                    (
+                        "Show latest data. Toggle with space.".to_owned(),
+                        ui.input(|i| i.key_pressed(egui::Key::Space))
+                            && ui.memory(|m| m.focused().is_none()),
+                    )
+                } else {
+                    ("Show latest data.".to_owned(), false)
+                };
 
-            if self.paused.is_some() {
-                if ui
-                    .add_sized(play_pause_button_size, egui::Button::new("▶"))
-                    .on_hover_text("Show latest data. Toggle with space.")
-                    .clicked()
-                    || space_pressed
-                {
-                    self.paused = None;
-                }
-            } else {
-                ui.horizontal(|ui| {
+                if self.paused.is_some() {
                     if ui
-                        .add_sized(play_pause_button_size, egui::Button::new("⏸"))
-                        .on_hover_text("Pause on this frame. Toggle with space.")
+                        .add_sized(play_pause_button_size, egui::Button::new("▶"))
+                        .on_hover_text(hover_text)
                         .clicked()
                         || space_pressed
                     {
-                        let latest = frame_view.latest_frame();
-                        if let Some(latest) = latest {
-                            if let Ok(latest) = latest.unpacked() {
-                                self.pause_and_select(
-                                    frame_view,
-                                    SelectedFrames::from_vec1(
-                                        frame_view.scope_collection(),
-                                        vec1::vec1![latest],
-                                    ),
-                                );
+                        self.paused = None;
+                    }
+                } else {
+                    ui.horizontal(|ui| {
+                        if ui
+                            .add_sized(play_pause_button_size, egui::Button::new("⏸"))
+                            .on_hover_text("Pause on this frame. Toggle with space.")
+                            .clicked()
+                            || space_pressed
+                        {
+                            let latest = frame_view.latest_frame();
+                            if let Some(latest) = latest {
+                                if let Ok(latest) = latest.unpacked() {
+                                    self.pause_and_select(
+                                        frame_view,
+                                        SelectedFrames::from_vec1(
+                                            frame_view.scope_collection(),
+                                            vec1::vec1![latest],
+                                        ),
+                                    );
+                                }
                             }
                         }
-                    }
-                });
+                    });
+                }
+
+                if settings.additional_frame_info {
+                    frames_info_ui(ui, &frames);
+                }
+            });
+
+            if frames.frames.len() == 1 {
+                let frame = frames.frames.first();
+
+                let num_scopes = frame.meta.num_scopes;
+                let realistic_ns_overhead = 200.0; // Micro-benchmarks puts it at 50ns, but real-life tests show it's much higher.
+                let overhead_ms = num_scopes as f64 * 1.0e-6 * realistic_ns_overhead;
+                if overhead_ms > 1.0 {
+                    let overhead = if overhead_ms < 2.0 {
+                        format!("{overhead_ms:.1} ms")
+                    } else {
+                        format!("{overhead_ms:.0} ms")
+                    };
+
+                    let text = format!(
+                        "There are {num_scopes} scopes in this frame, which adds around ~{overhead} of overhead.\n\
+                        Use the Table view to find which scopes are triggered often, and either remove them or replace them with profile_function_if!()"
+                    );
+
+                    ui.label(egui::RichText::new(text).color(ui.visuals().warn_fg_color));
+                }
             }
 
-            frames_info_ui(ui, &frames);
-        });
-
-        if frames.frames.len() == 1 {
-            let frame = frames.frames.first();
-
-            let num_scopes = frame.meta.num_scopes;
-            let realistic_ns_overhead = 200.0; // Micro-benchmarks puts it at 50ns, but real-life tests show it's much higher.
-            let overhead_ms = num_scopes as f64 * 1.0e-6 * realistic_ns_overhead;
-            if overhead_ms > 1.0 {
-                let overhead = if overhead_ms < 2.0 {
-                    format!("{overhead_ms:.1} ms")
-                } else {
-                    format!("{overhead_ms:.0} ms")
-                };
-
-                let text = format!(
-                    "There are {num_scopes} scopes in this frame, which adds around ~{overhead} of overhead.\n\
-                    Use the Table view to find which scopes are triggered often, and either remove them or replace them with profile_function_if!()"
-                );
-
-                ui.label(egui::RichText::new(text).color(ui.visuals().warn_fg_color));
+            if self.paused.is_none() {
+                ui.ctx().request_repaint(); // keep refreshing to see latest data
             }
-        }
 
-        if self.paused.is_none() {
-            ui.ctx().request_repaint(); // keep refreshing to see latest data
-        }
+            ui.horizontal(|ui| {
+                ui.label("View:");
+                ui.selectable_value(&mut self.view, View::Flamegraph, "Flamegraph");
+                ui.selectable_value(&mut self.view, View::Stats, "Table");
+            });
+        };
 
-        ui.horizontal(|ui| {
-            ui.label("View:");
-            ui.selectable_value(&mut self.view, View::Flamegraph, "Flamegraph");
-            ui.selectable_value(&mut self.view, View::Stats, "Table");
-        });
+        if settings.compact_ui {
+            ui.horizontal(header_ui);
+        } else {
+            ui.vertical(header_ui);
+        }
 
         match self.view {
             View::Flamegraph => flamegraph::ui(

@@ -1,4 +1,5 @@
 use eframe::egui;
+use puffin_egui::ProfilerUiSettings;
 
 fn main() -> eframe::Result<()> {
     let mut frame_counter = 0;
@@ -33,7 +34,7 @@ fn main() -> eframe::Result<()> {
         });
 
         // This call does nothing if profiling is disabled
-        puffin_egui::show_viewport_if_enabled(ctx);
+        puffin_egui::show_viewport_if_enabled(ctx, ProfilerUiSettings::default());
 
         // ----------------------------------------------------------------
 

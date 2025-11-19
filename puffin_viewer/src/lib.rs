@@ -7,7 +7,7 @@
 
 use eframe::egui;
 use puffin::FrameView;
-use puffin_egui::MaybeMutRef;
+use puffin_egui::{MaybeMutRef, ProfilerUiSettings};
 
 pub enum Source {
     None,
@@ -185,7 +185,7 @@ impl PuffinViewer {
             let painter =
                 ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
 
-            let screen_rect = ctx.input(|i| i.screen_rect());
+            let screen_rect = ctx.input(|i| i.content_rect());
             painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
             painter.text(
                 screen_rect.center(),
@@ -253,18 +253,26 @@ impl eframe::App for PuffinViewer {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             if self.profile_self {
-                self.global_profiler_ui.ui(ui);
+                self.global_profiler_ui
+                    .ui(ui, &ProfilerUiSettings::default());
             } else {
                 match &mut self.source {
                     Source::None => {
                         ui.heading("Drag-and-drop a .puffin file here");
                     }
                     Source::Http(http_client) => {
-                        self.profiler_ui
-                            .ui(ui, &mut MaybeMutRef::MutRef(&mut http_client.frame_view()));
+                        self.profiler_ui.ui(
+                            ui,
+                            &mut MaybeMutRef::MutRef(&mut http_client.frame_view()),
+                            &ProfilerUiSettings::default(),
+                        );
                     }
                     Source::FilePath(_, frame_view) | Source::FileName(_, frame_view) => {
-                        self.profiler_ui.ui(ui, &mut MaybeMutRef::Ref(frame_view));
+                        self.profiler_ui.ui(
+                            ui,
+                            &mut MaybeMutRef::Ref(frame_view),
+                            &ProfilerUiSettings::default(),
+                        );
                     }
                 }
             }
