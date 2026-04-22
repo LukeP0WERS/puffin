@@ -43,7 +43,7 @@ const HOVER_COLOR: Rgba = Rgba::from_rgb(0.8, 0.8, 0.8);
 /// else it will be shown in a floating [`egui::Window`].
 ///
 /// Closing the viewport or window will call `puffin::set_scopes_on(false)`.
-pub fn show_viewport_if_enabled(ctx: &egui::Context, settings: ProfilerUiSettings) {
+pub fn show_viewport_if_enabled(ui: &mut Ui, settings: ProfilerUiSettings) {
     if !puffin::are_scopes_on() {
         return;
     }
@@ -58,12 +58,13 @@ pub fn show_viewport_if_enabled(ctx: &egui::Context, settings: ProfilerUiSetting
                 egui::Window::new("Puffin Profiler")
                     .default_size([1024.0, 600.0])
                     .open(&mut open)
-                    .show(ctx, |ui| profiler_ui(ui, &settings));
+                    .show(ui.ctx(), |ui| profiler_ui(ui, &settings));
                 puffin::set_scopes_on(open);
             } else {
                 // A proper viewport!
-                egui::CentralPanel::default().show(ctx, |ui| profiler_ui(ui, &settings));
-                if ctx.input(|i| i.viewport().close_requested()) {
+                
+                egui::CentralPanel::default().show_inside(ui, |ui| profiler_ui(ui, &settings));
+                if ui.ctx().input(|i| i.viewport().close_requested()) {
                     puffin::set_scopes_on(false);
                 }
             }

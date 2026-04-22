@@ -409,7 +409,7 @@ fn ui_canvas(
                 pos2(info.canvas.min.x, line_y),
                 pos2(info.canvas.max.x, line_y),
             ],
-            Stroke::new(1.0, Rgba::from_white_alpha(0.5)),
+            Stroke::new(1.0f32, Rgba::from_white_alpha(0.5)),
         );
 
         cursor_y += info.text_height;
@@ -572,7 +572,7 @@ fn paint_timeline(
 
             shapes.push(egui::Shape::line_segment(
                 [pos2(line_x, canvas.min.y), pos2(line_x, canvas.max.y)],
-                Stroke::new(1.0, Rgba::from_white_alpha(line_alpha * alpha_multiplier)),
+                Stroke::new(1.0f32, Rgba::from_white_alpha(line_alpha * alpha_multiplier)),
             ));
 
             let text_alpha = if big_line {

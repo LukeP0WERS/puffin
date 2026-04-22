@@ -34,7 +34,7 @@ fn main() -> eframe::Result<()> {
         });
 
         // This call does nothing if profiling is disabled
-        puffin_egui::show_viewport_if_enabled(ctx, ProfilerUiSettings::default());
+        puffin_egui::show_viewport_if_enabled(ui, ProfilerUiSettings::default());
 
         // ----------------------------------------------------------------
 
