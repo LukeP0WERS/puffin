@@ -48,11 +48,11 @@ pub fn show_viewport_if_enabled(ctx: &egui::Context, settings: ProfilerUiSetting
         return;
     }
 
-    ctx.show_viewport_deferred(
+    ui.show_viewport_deferred(
         egui::ViewportId::from_hash_of("puffin_profiler"),
         egui::ViewportBuilder::default().with_title("Puffin Profiler"),
-        move |ctx, class| {
-            if class == egui::ViewportClass::Embedded {
+        move |ui, class| {
+            if class == egui::ViewportClass::EmbeddedWindow {
                 // Viewports not supported. Show it as a floating egui window instead.
                 let mut open = true;
                 egui::Window::new("Puffin Profiler")
@@ -304,15 +304,11 @@ pub struct Paused {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Default)]
 pub enum View {
+    #[default]
     Flamegraph,
     Stats,
-}
-
-impl Default for View {
-    fn default() -> Self {
-        Self::Flamegraph
-    }
 }
 
 /// Contains settings for the profiler.
@@ -799,10 +795,10 @@ impl ProfilerUi {
                 ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
                 ui.add_space(16.0); // make it a bit more centered
                 ui.label("Slowest:");
-                if let Some(frame_view) = frame_view.as_mut() {
-                    if ui.button("Clear").clicked() {
-                        frame_view.clear_slowest();
-                    }
+                if let Some(frame_view) = frame_view.as_mut()
+                    && ui.button("Clear").clicked()
+                {
+                    frame_view.clear_slowest();
                 }
             });
 
@@ -901,7 +897,7 @@ impl ProfilerUi {
                 if is_hovered && !is_selected && !viewing_multiple_frames {
                     *hovered_frame = Some(frame.clone());
                     Tooltip::always_open(
-                        ui.ctx().clone(),
+                        ui.clone(),
                         ui.layer_id(),
                         Id::new("puffin_frame_tooltip"),
                         PopupAnchor::Pointer,
@@ -911,18 +907,15 @@ impl ProfilerUi {
                     });
                 }
 
-                if response.dragged() {
-                    if let (Some(start), Some(curr)) =
+                if response.dragged()
+                    && let (Some(start), Some(curr)) =
                         ui.input(|i| (i.pointer.press_origin(), i.pointer.interact_pos()))
-                    {
-                        let min_x = start.x.min(curr.x);
-                        let max_x = start.x.max(curr.x);
-                        let intersects = min_x <= frame_rect.right() && frame_rect.left() <= max_x;
-                        if intersects {
-                            if let Ok(frame) = frame.unpacked() {
-                                new_selection.push(frame);
-                            }
-                        }
+                {
+                    let min_x = start.x.min(curr.x);
+                    let max_x = start.x.max(curr.x);
+                    let intersects = min_x <= frame_rect.right() && frame_rect.left() <= max_x;
+                    if intersects && let Ok(frame) = frame.unpacked() {
+                        new_selection.push(frame);
                     }
                 }
 

@@ -67,16 +67,16 @@ impl FrameView {
             self.scope_collection.insert(new_scope.clone());
         }
 
-        if let Some(last) = self.recent.iter().last() {
-            if new_frame.frame_index() <= last.0.frame_index() {
-                // A frame from the past!?
-                // Likely we are `puffin_viewer`, and the server restarted.
-                // The safe choice is to clear everything:
-                self.stats.clear();
-                self.recent.clear();
-                self.slowest_by_index.clear();
-                self.slowest_by_duration.clear();
-            }
+        if let Some(last) = self.recent.iter().last()
+            && new_frame.frame_index() <= last.0.frame_index()
+        {
+            // A frame from the past!?
+            // Likely we are `puffin_viewer`, and the server restarted.
+            // The safe choice is to clear everything:
+            self.stats.clear();
+            self.recent.clear();
+            self.slowest_by_index.clear();
+            self.slowest_by_duration.clear();
         }
 
         if let Some(last) = self.recent.iter().last() {
@@ -241,7 +241,7 @@ impl FrameView {
         let mut magic = [0_u8; 4];
         read.read_exact(&mut magic)?;
         if &magic != b"PUF0" {
-            anyhow::bail!("Expected .puffin magic header of 'PUF0', found {:?}", magic);
+            anyhow::bail!("Expected .puffin magic header of 'PUF0', found {magic:?}");
         }
 
         let mut slf = Self {
@@ -439,5 +439,38 @@ impl FrameStats {
         self.unique_frames = 0;
         self.unpacked_frames = 0;
         self.total_ram_used = 0;
+    }
+}
+
+#[cfg(all(test, feature = "serialization"))]
+mod tests {
+    use super::FrameView;
+
+    #[test]
+    fn read_pfd4_file() -> anyhow::Result<()> {
+        let mut file = std::fs::File::open("tests/data/capture_PFD4.puffin")?;
+        let _ = FrameView::read(&mut file)?;
+        Ok(())
+    }
+
+    #[test]
+    fn read_pfd3_file() -> anyhow::Result<()> {
+        let mut file = std::fs::File::open("tests/data/capture_PFD3.puffin")?;
+        let _ = FrameView::read(&mut file)?;
+        Ok(())
+    }
+
+    #[test]
+    fn read_pfd2_file() -> anyhow::Result<()> {
+        let mut file = std::fs::File::open("tests/data/capture_PFD2.puffin")?;
+        let _ = FrameView::read(&mut file)?;
+        Ok(())
+    }
+
+    #[test]
+    fn read_pfd1_file() -> anyhow::Result<()> {
+        let mut file = std::fs::File::open("tests/data/capture_PFD1.puffin")?;
+        let _ = FrameView::read(&mut file)?;
+        Ok(())
     }
 }

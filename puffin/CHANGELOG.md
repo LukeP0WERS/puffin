@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+## [0.20.0] - 2026-03-18
+
+- [PR#274](https://github.com/EmbarkStudios/puffin/pull/274) Fix trimming of unicode scope names
+- [PR#269](https://github.com/EmbarkStudios/puffin/pull/269) Reuse existing scope ids in `register_user_scopes`
+- [PR#260](https://github.com/EmbarkStudios/puffin/pull/260) Inline `are_scopes_on()` (80% perf improvement)
+- [PR#258](https://github.com/EmbarkStudios/puffin/pull/258) Add PFD1 to PFD4 deserialization tests
+- [PR#251](https://github.com/EmbarkStudios/puffin/pull/251) Replace `once_cell::Lazy` with `std::sync::LazyLock`
+- [PR#230](https://github.com/EmbarkStudios/puffin/pull/230) Remove `::{{closure}}` in more cases from function names
+- [PR#271](https://github.com/EmbarkStudios/puffin/pull/271) Update MSRV to 1.92
+- [PR#272](https://github.com/EmbarkStudios/puffin/pull/272) Update most dependencies
+
 ## [0.19.1] - 2024-07-31
 
 - [PR#151](https://github.com/EmbarkStudios/puffin/pull/151) Optimize frame statistics collection.
@@ -141,7 +152,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `GlobalProfiler` now store recent history and the slowest frames.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/EmbarkStudios/puffin/compare/puffin-0.19.1...HEAD
+[Unreleased]: https://github.com/EmbarkStudios/puffin/compare/puffin-0.20.0...HEAD
+[0.20.0]: https://github.com/EmbarkStudios/puffin/compare/puffin-0.19.1...puffin-0.20.0
 [0.19.1]: https://github.com/EmbarkStudios/puffin/compare/0.19.0...puffin-0.19.1
 [0.19.0]: https://github.com/EmbarkStudios/puffin/compare/0.18.1...0.19.0
 [0.18.1]: https://github.com/EmbarkStudios/puffin/compare/0.18.0...0.18.1

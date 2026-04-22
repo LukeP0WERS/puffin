@@ -136,7 +136,7 @@ impl Server {
     ///
     /// /// This macro makes it much easier to define profilers
     /// ///
-    /// /// This macro makes use of the `paste` crate to generate unique identifiers, and `tracing` to log events
+    /// /// This macro makes use of the `pastey` crate to generate unique identifiers, and `tracing` to log events
     /// macro_rules! profiler {
     ///     ($(
     ///          {name: $name:ident, port: $port:expr $(,install: |$install_var:ident| $install:block, drop: |$drop_var:ident| $drop:block)? $(,)?}
@@ -148,7 +148,7 @@ impl Server {
     ///     };
     ///
     ///     (@inner { name: $name:ident, port: $port:expr }) => {
-    ///         paste::paste!{
+    ///         pastey::paste!{
     ///             #[doc = concat!("The address to bind the ", std::stringify!([< $name:lower >]), " thread profilers' server to")]
     ///                 pub const [< $name:upper _PROFILER_ADDR >] : &'static str
     ///                     = concat!("127.0.0.1:", $port);
@@ -248,7 +248,7 @@ impl Server {
             crossbeam_channel::unbounded();
 
         let num_clients = Arc::new(AtomicUsize::default());
-        let num_clients_cloned = num_clients.clone();
+        let num_clients_cloned = Arc::clone(&num_clients);
 
         let join_handle = std::thread::Builder::new()
             .name("puffin-server".to_owned())
@@ -363,11 +363,11 @@ impl PuffinServerImpl {
                     });
                     self.num_clients.store(self.clients.len(), Ordering::SeqCst);
                 }
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
                     break; // Nothing to do for now.
                 }
-                Err(e) => {
-                    anyhow::bail!("puffin server TCP error: {:?}", e);
+                Err(err) => {
+                    anyhow::bail!("puffin server TCP error: {err}");
                 }
             }
         }
@@ -379,7 +379,7 @@ impl PuffinServerImpl {
 
         // Keep scope_collection up-to-date
         for new_scope in &frame.scope_delta {
-            self.scope_collection.insert(new_scope.clone());
+            self.scope_collection.insert(Arc::clone(new_scope));
         }
 
         // Nothing to send if no clients => Early return.
@@ -408,7 +408,7 @@ impl PuffinServerImpl {
 
         self.clients.retain(|client| match &client.packet_tx {
             None => false,
-            Some(packet_tx) => match packet_tx.try_send(packet.clone()) {
+            Some(packet_tx) => match packet_tx.try_send(Arc::clone(&packet)) {
                 Ok(()) => true,
                 Err(crossbeam_channel::TrySendError::Disconnected(_)) => false,
                 Err(crossbeam_channel::TrySendError::Full(_)) => {
