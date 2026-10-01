@@ -744,86 +744,88 @@ impl ProfilerUi {
 
         let mut hovered_frame = None;
 
-        egui::Grid::new("frame_grid").num_columns(2).show(ui, |ui| {
-            ui.label("");
-            ui.horizontal(|ui| {
-                ui.label("Click to select a frame, or drag to select multiple frames.");
+        ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+            egui::Grid::new("frame_grid").num_columns(2).show(ui, |ui| {
+                ui.label("");
+                ui.horizontal(|ui| {
+                    ui.label("Click to select a frame, or drag to select multiple frames.");
 
-                ui.menu_button("🔧 Settings", |ui| {
-                    let uniq = &frames.uniq;
-                    let stats = &frames.stats;
+                    ui.menu_button("🔧 Settings", |ui| {
+                        let uniq = &frames.uniq;
+                        let stats = &frames.stats;
 
-                    ui.label(format!(
-                        "{} frames ({} unpacked) using approximately {:.1} MB.",
-                        stats.frames(),
-                        stats.unpacked_frames(),
-                        stats.bytes_of_ram_used() as f64 * 1e-6
-                    ));
+                        ui.label(format!(
+                            "{} frames ({} unpacked) using approximately {:.1} MB.",
+                            stats.frames(),
+                            stats.unpacked_frames(),
+                            stats.bytes_of_ram_used() as f64 * 1e-6
+                        ));
 
-                    if let Some(frame_view) = frame_view.as_mut() {
-                        max_frames_ui(ui, frame_view, uniq);
-                        if self.paused.is_none() {
-                            max_num_latest_ui(ui, &mut self.max_num_latest);
+                        if let Some(frame_view) = frame_view.as_mut() {
+                            max_frames_ui(ui, frame_view, uniq);
+                            if self.paused.is_none() {
+                                max_num_latest_ui(ui, &mut self.max_num_latest);
+                            }
                         }
+                    });
+                });
+                ui.end_row();
+
+                ui.label("Recent:");
+
+                Frame::dark_canvas(ui.style()).show(ui, |ui| {
+                    egui::ScrollArea::horizontal()
+                        .stick_to_right(true)
+                        .scroll_source(ScrollSource::SCROLL_BAR | ScrollSource::MOUSE_WHEEL)
+                        .show(ui, |ui| {
+                            let slowest_visible = self.show_frame_list(
+                                ui,
+                                frame_view,
+                                &frames.recent,
+                                false,
+                                &mut hovered_frame,
+                                self.slowest_frame,
+                            );
+                            // quickly, but smoothly, normalize frame height:
+                            self.slowest_frame = lerp(self.slowest_frame..=slowest_visible as f32, 0.2);
+                        });
+                });
+
+                ui.end_row();
+
+                ui.vertical(|ui| {
+                    ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
+                    ui.add_space(16.0); // make it a bit more centered
+                    ui.label("Slowest:");
+                    if let Some(frame_view) = frame_view.as_mut()
+                        && ui.button("Clear").clicked()
+                    {
+                        frame_view.clear_slowest();
                     }
                 });
-            });
-            ui.end_row();
 
-            ui.label("Recent:");
+                // Show as many slow frames as we fit in the view:
+                Frame::dark_canvas(ui.style()).show(ui, |ui| {
+                    let num_fit = (ui.available_size_before_wrap().x
+                        / self.flamegraph_options.frame_width)
+                        .floor();
+                    let num_fit = (num_fit as usize).at_least(1).at_most(frames.slowest.len());
+                    let slowest_of_the_slow = puffin::select_slowest(&frames.slowest, num_fit);
 
-            Frame::dark_canvas(ui.style()).show(ui, |ui| {
-                egui::ScrollArea::horizontal()
-                    .stick_to_right(true)
-                    .scroll_source(ScrollSource::SCROLL_BAR | ScrollSource::MOUSE_WHEEL)
-                    .show(ui, |ui| {
-                        let slowest_visible = self.show_frame_list(
-                            ui,
-                            frame_view,
-                            &frames.recent,
-                            false,
-                            &mut hovered_frame,
-                            self.slowest_frame,
-                        );
-                        // quickly, but smoothly, normalize frame height:
-                        self.slowest_frame = lerp(self.slowest_frame..=slowest_visible as f32, 0.2);
-                    });
-            });
+                    let mut slowest_frame = 0;
+                    for frame in &slowest_of_the_slow {
+                        slowest_frame = frame.duration_ns().max(slowest_frame);
+                    }
 
-            ui.end_row();
-
-            ui.vertical(|ui| {
-                ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
-                ui.add_space(16.0); // make it a bit more centered
-                ui.label("Slowest:");
-                if let Some(frame_view) = frame_view.as_mut()
-                    && ui.button("Clear").clicked()
-                {
-                    frame_view.clear_slowest();
-                }
-            });
-
-            // Show as many slow frames as we fit in the view:
-            Frame::dark_canvas(ui.style()).show(ui, |ui| {
-                let num_fit = (ui.available_size_before_wrap().x
-                    / self.flamegraph_options.frame_width)
-                    .floor();
-                let num_fit = (num_fit as usize).at_least(1).at_most(frames.slowest.len());
-                let slowest_of_the_slow = puffin::select_slowest(&frames.slowest, num_fit);
-
-                let mut slowest_frame = 0;
-                for frame in &slowest_of_the_slow {
-                    slowest_frame = frame.duration_ns().max(slowest_frame);
-                }
-
-                self.show_frame_list(
-                    ui,
-                    frame_view,
-                    &slowest_of_the_slow,
-                    true,
-                    &mut hovered_frame,
-                    slowest_frame as f32,
-                );
+                    self.show_frame_list(
+                        ui,
+                        frame_view,
+                        &slowest_of_the_slow,
+                        true,
+                        &mut hovered_frame,
+                        slowest_frame as f32,
+                    );
+                });
             });
         });
 
