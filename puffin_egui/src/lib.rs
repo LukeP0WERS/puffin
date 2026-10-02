@@ -700,13 +700,9 @@ impl ProfilerUi {
             });
 
             if frame_history_state.is_open() {
-                frame_history_state.show_body_indented(
-                    &ui.response(),
-                    ui,
-                    |ui| {
-                        hovered_frame = self.show_frames(ui, frame_view);
-                    },
-                );
+                ui.indent("frame_history_body", |ui| {
+                    hovered_frame = self.show_frames(ui, frame_view);
+                });
             }
         } else {
             ui.vertical(|ui| {
