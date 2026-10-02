@@ -695,7 +695,7 @@ impl ProfilerUi {
         };
 
         if settings.compact_ui {
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 header_ui(ui);
             });
 
