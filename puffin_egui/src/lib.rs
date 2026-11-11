@@ -3,7 +3,7 @@
 //! Usage:
 //! ```
 //! # let mut egui_ctx = egui::Context::default();
-//! # egui_ctx.begin_frame(Default::default());
+//! # egui_ctx.begin_pass(Default::default());
 //! puffin_egui::profiler_window(&egui_ctx);
 //! ```
 
@@ -62,9 +62,8 @@ pub fn show_viewport_if_enabled(ui: &mut Ui, settings: ProfilerUiSettings) {
                 puffin::set_scopes_on(open);
             } else {
                 // A proper viewport!
-                
-                egui::CentralPanel::default().show_inside(ui, |ui| profiler_ui(ui, &settings));
-                if ui.ctx().input(|i| i.viewport().close_requested()) {
+                egui::CentralPanel::default().show(ui, |ui| profiler_ui(ui, &settings));
+                if ui.input(|i| i.viewport().close_requested()) {
                     puffin::set_scopes_on(false);
                 }
             }
@@ -562,7 +561,7 @@ impl ProfilerUi {
 
                         let header_resp = ui.interact(
                             combined_rect,
-                            ui.id().with("frame_history_header"),
+                            ui.scope_id().with("frame_history_header"),
                             egui::Sense::click(),
                         );
 
@@ -896,7 +895,7 @@ impl ProfilerUi {
                     Tooltip::always_open(
                         ui.clone(),
                         ui.layer_id(),
-                        Id::new("puffin_frame_tooltip"),
+                        Id::unique("puffin_frame_tooltip"),
                         PopupAnchor::Pointer,
                     )
                     .show(|ui| {
