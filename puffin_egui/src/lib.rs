@@ -561,7 +561,7 @@ impl ProfilerUi {
 
                         let header_resp = ui.interact(
                             combined_rect,
-                            ui.scope_id().with("frame_history_header"),
+                            ui.id().with("frame_history_header"),
                             egui::Sense::click(),
                         );
 
@@ -895,7 +895,7 @@ impl ProfilerUi {
                     Tooltip::always_open(
                         ui.clone(),
                         ui.layer_id(),
-                        Id::unique("puffin_frame_tooltip"),
+                        Id::new("puffin_frame_tooltip"),
                         PopupAnchor::Pointer,
                     )
                     .show(|ui| {

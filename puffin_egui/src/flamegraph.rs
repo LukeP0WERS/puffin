@@ -214,7 +214,7 @@ pub fn num_frames(
 
     {
         // reset view if number of selected frames changes (and we are viewing all of them):
-        let num_frames_id = ui.scope_id().with("num_frames");
+        let num_frames_id = ui.id().with("num_frames");
         let num_frames_last_frame =
             ui.memory_mut(|m| m.data.get_temp::<usize>(num_frames_id).unwrap_or_default());
 
@@ -307,7 +307,7 @@ pub fn flamegraph_ui(
         ScrollArea::vertical().content_margin(0.0).show(ui, |ui| {
             let mut canvas = ui.available_rect_before_wrap();
             canvas.max.y = f32::INFINITY;
-            let response = ui.interact(canvas, ui.scope_id().with("canvas"), Sense::click_and_drag());
+            let response = ui.interact(canvas, ui.id().with("canvas"), Sense::click_and_drag());
 
             let (min_ns, max_ns) = if options.merge_scopes {
                 frames.merged_range_ns
@@ -801,7 +801,7 @@ fn paint_scope(
             Tooltip::always_open(
                 info.ctx.clone(),
                 info.layer_id,
-                Id::unique("puffin_profiler_tooltip"),
+                Id::new("puffin_profiler_tooltip"),
                 PopupAnchor::Pointer,
             )
             .show(|ui| {
@@ -867,7 +867,7 @@ fn paint_merge_scope(
             Tooltip::always_open(
                 info.ctx.clone(),
                 info.layer_id,
-                Id::unique("puffin_profiler_tooltip"),
+                Id::new("puffin_profiler_tooltip"),
                 PopupAnchor::Pointer,
             )
             .show(|ui| {
